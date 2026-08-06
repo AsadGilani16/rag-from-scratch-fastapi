@@ -1,0 +1,5 @@
+# .gitignore
+02_vector_database/my_chroma_db/
+.vscode/
+__pycache__/
+.env
