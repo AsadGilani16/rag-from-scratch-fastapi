@@ -1,4 +1,6 @@
-my_chroma_db/
+.env
 .venv/
-.DS_Store
+my_chroma_db/
+**/my_chroma_db/
 __pycache__/
+.DS_Store
