@@ -53,19 +53,32 @@ def evaluate_groundedness(context: str, answer: str) -> bool:
     eval_result = response.choices[0].message.content.strip().upper()
     return "YES" in eval_result
 
-def run_rag_pipeline(query: str):
+def run_rag_pipeline(query: str, top_k: int = 3):
     print(f"\nQuery: {query}")
 
-    documents, metadatas = retrieve_context(query)
+    # Pass top_k to your retrieval function
+    documents, metadatas = retrieve_context(query, top_k=top_k)
 
+    # 1. Fallback if no relevant documents were retrieved
     if not documents:
-        return "Information not found in context."
+        return {
+            "query": query,
+            "answer": "Information not found in context.",
+            "is_grounded": False,
+            "sources": []
+        }
 
     context_blocks = []
+    sources_list = []
+
     for doc, meta in zip(documents, metadatas):
         source = meta.get("source", "Unknown")
         page = meta.get("page", "N/A")
+        
         context_blocks.append(f"[Source: {source}, Page: {page}]\n{doc}")
+        
+        # Collect structured source info for Pydantic response
+        sources_list.append({"source": source, "page": page})
 
     full_context = "\n\n---\n\n".join(context_blocks)
 
@@ -89,12 +102,19 @@ def run_rag_pipeline(query: str):
 
     answer = response.choices[0].message.content
 
+    # Run post-generation evaluation check
     is_grounded = evaluate_groundedness(full_context, answer)
 
     print(f"\nGenerated Answer:\n{answer}")
     print(f"\n[Eval Check] Grounded in Context: {is_grounded}")
 
-    return answer
+    # 2. Return full dictionary matching QueryResponse schema
+    return {
+        "query": query,
+        "answer": answer,
+        "is_grounded": is_grounded,
+        "sources": sources_list
+    }
 
 
 def main():
