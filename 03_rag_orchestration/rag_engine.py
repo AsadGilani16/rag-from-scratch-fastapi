@@ -3,6 +3,7 @@ from pypdf import PdfReader
 import os
 from dotenv import load_dotenv
 from groq import Groq
+import io
 
 load_dotenv()
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
@@ -49,6 +50,40 @@ def ingest_document(file_path: str):
         metadatas=metadatas
     )
     print(f"Successfully ingested {len(chunks)} chunks from '{file_name}' into ChromaDB!")
+
+# to make the system dynamic, in case we take the pdf from the user.
+import io
+import os
+from pypdf import PdfReader
+
+
+def ingest_from_bytes(file_bytes: bytes, filename: str) -> int:
+    """
+    Ingests raw uploaded bytes from FastAPI directly into ChromaDB.
+    """
+    if filename.endswith(".pdf"):
+        reader = PdfReader(io.BytesIO(file_bytes))
+        raw_text = "\n".join([page.extract_text() for page in reader.pages if page.extract_text()])
+    elif filename.endswith(".txt"):
+        raw_text = file_bytes.decode("utf-8")
+    else:
+        raise ValueError("Unsupported file format")
+
+    if not raw_text.strip():
+        raise ValueError("No readable text could be extracted from the file.")
+
+    chunks = chunk_text(raw_text, chunk_size=500, overlap=50)
+    
+    file_name = os.path.basename(filename)
+    ids = [f"{file_name}_chunk_{i}" for i in range(len(chunks))]
+    metadatas = [{"source": file_name, "chunk_index": i} for i in range(len(chunks))]
+
+    collection.add(
+        ids=ids,
+        documents=chunks,
+        metadatas=metadatas
+    )
+    return len(chunks)
 
 
 def semantic_search(query: str, top_k: int = 3) -> list[str]:

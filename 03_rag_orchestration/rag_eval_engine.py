@@ -1,4 +1,5 @@
 import os
+import asyncio
 import chromadb
 from dotenv import load_dotenv
 from groq import AsyncGroq
@@ -19,8 +20,8 @@ DISTANCE_THRESHOLD = 1.2
 def retrieve_context(query: str, top_k: int = 3):
     results = collection.query(
         query_texts=[query],
-          n_results=top_k, 
-          include=["documents", "distances", "metadatas"]
+        n_results=top_k, 
+        include=["documents", "distances", "metadatas"]
     )
 
     distances = results["distances"][0]
@@ -32,7 +33,7 @@ def retrieve_context(query: str, top_k: int = 3):
 
     return documents, metadatas
 
-def evaluate_groundedness(context: str, answer: str) -> bool:
+async def evaluate_groundedness(context: str, answer: str) -> bool:
     eval_prompt = f"""
     Context:
     {context}
@@ -44,7 +45,7 @@ def evaluate_groundedness(context: str, answer: str) -> bool:
     Do not use outside knowledge. Answer with ONLY the single word 'YES' or 'NO'.
     """
 
-    response = groq_client.chat.completions.create(
+    response = await groq_client.chat.completions.create(
         model="llama-3.1-8b-instant",
         messages=[{"role": "user", "content": eval_prompt}],
         temperature=0.0,
@@ -56,10 +57,8 @@ def evaluate_groundedness(context: str, answer: str) -> bool:
 async def run_rag_pipeline(query: str, top_k: int = 3):
     print(f"\nQuery: {query}")
 
-    # Pass top_k to your retrieval function
     documents, metadatas = retrieve_context(query, top_k=top_k)
 
-    # 1. Fallback if no relevant documents were retrieved
     if not documents:
         return {
             "query": query,
@@ -76,9 +75,7 @@ async def run_rag_pipeline(query: str, top_k: int = 3):
         page = meta.get("page", "N/A")
         
         context_blocks.append(f"[Source: {source}, Page: {page}]\n{doc}")
-        
-        # Collect structured source info for Pydantic response
-        sources_list.append({"source": source, "page": page})
+        sources_list.append({"source": str(source), "page": page})
 
     full_context = "\n\n---\n\n".join(context_blocks)
 
@@ -102,13 +99,12 @@ async def run_rag_pipeline(query: str, top_k: int = 3):
 
     answer = response.choices[0].message.content
 
-    # Run post-generation evaluation check
-    is_grounded = evaluate_groundedness(full_context, answer)
+    #  FIXED: Added 'await' here
+    is_grounded = await evaluate_groundedness(full_context, answer)
 
     print(f"\nGenerated Answer:\n{answer}")
     print(f"\n[Eval Check] Grounded in Context: {is_grounded}")
 
-    # 2. Return full dictionary matching QueryResponse schema
     return {
         "query": query,
         "answer": answer,
@@ -116,34 +112,28 @@ async def run_rag_pipeline(query: str, top_k: int = 3):
         "sources": sources_list
     }
 
-
-def main():
+async def main():
     print("=" * 60)
     print("  RAG Engine with Evaluation & Anti-Hallucination Guardrails")
     print("=" * 60)
 
-    # Test 1: In-domain question
     query_1 = "According to the text, what specific events led to the formation of the Tehrik-i-Taliban Pakistan (TTP) in 2007?"
     print(f"\n--- [Test 1: Valid Query] ---")
     print(f"Query: {query_1}")
     
-    # Store the returned answer and print it!
-    result_1 = run_rag_pipeline(query_1)
+    result_1 = await run_rag_pipeline(query_1)
     print(f"\nResponse:\n{result_1}")
 
     print("\n" + "-" * 60)
 
-    # Test 2: Out-of-domain question
     query_2 = "What is the capital of France and its population?"
     print(f"\n--- [Test 2: Out-of-Domain Query] ---")
     print(f"Query: {query_2}")
     
-    # Store the returned answer and print it!
-    result_2 = run_rag_pipeline(query_2)
+    result_2 = await run_rag_pipeline(query_2)
     print(f"\nResponse:\n{result_2}")
 
     print("\n" + "=" * 60)
 
-
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
