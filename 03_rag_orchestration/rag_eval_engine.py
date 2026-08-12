@@ -1,10 +1,10 @@
 import os
 import chromadb
 from dotenv import load_dotenv
-from groq import Groq
+from groq import AsyncGroq
 
 load_dotenv()
-groq_client = Groq()
+groq_client = AsyncGroq()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.abspath(
@@ -53,7 +53,7 @@ def evaluate_groundedness(context: str, answer: str) -> bool:
     eval_result = response.choices[0].message.content.strip().upper()
     return "YES" in eval_result
 
-def run_rag_pipeline(query: str, top_k: int = 3):
+async def run_rag_pipeline(query: str, top_k: int = 3):
     print(f"\nQuery: {query}")
 
     # Pass top_k to your retrieval function
@@ -88,7 +88,7 @@ def run_rag_pipeline(query: str, top_k: int = 3):
         "Always cite your sources using the source tags provided in the context."
     )
 
-    response = groq_client.chat.completions.create(
+    response = await groq_client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[
             {"role": "system", "content": system_prompt},
