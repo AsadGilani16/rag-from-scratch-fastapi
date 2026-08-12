@@ -99,7 +99,6 @@ async def run_rag_pipeline(query: str, top_k: int = 3):
 
     answer = response.choices[0].message.content
 
-    #  FIXED: Added 'await' here
     is_grounded = await evaluate_groundedness(full_context, answer)
 
     print(f"\nGenerated Answer:\n{answer}")

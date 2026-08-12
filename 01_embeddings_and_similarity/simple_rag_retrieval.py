@@ -1,9 +1,6 @@
 from sentence_transformers import SentenceTransformer
 
-# 1. Load the model
 model = SentenceTransformer("all-MiniLM-L6-v2")
-
-# 2. Your documents (knowledge base)
 doc_names = ["Doc 1 (Weather)", "Doc 2 (Sun)", "Doc 3 (Sports)"]
 doc_texts = [
     "The weather is lovely today.",

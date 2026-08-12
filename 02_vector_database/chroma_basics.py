@@ -8,7 +8,6 @@ collection = client.get_or_create_collection(name="ai_knowledge_base")
 #    name="ai_knowledge_base",
 #)
 
-#10 sample documents
 
 docs = [
     "FastAPI provides fast web performance for modern Python APIs.",
